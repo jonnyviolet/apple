@@ -113,6 +113,23 @@ The signing certificate is still required even though Pass Designer signs the
 distributed file: `GET /v1/passes/...` returns a whole new signed pass, because
 that is how Wallet applies an update.
 
+## Announcing something to every holder
+
+The `member` header field carries `"changeMessage": "%@"`, so writing a new value
+into it both updates the pass and raises a lock-screen notification reading
+exactly that value. Keep it short — the field itself renders in the header strip.
+
+```bash
+curl -X PATCH https://passes.jonny.to/admin/passes/0001 \
+  -H "authorization: Bearer $ADMIN_TOKEN" \
+  -H 'content-type: application/json' \
+  -d '{"overrides": {"eventTicket": {"headerFields": [
+        {"key": "member", "value": "new song out now"}]}}}'
+```
+
+A notification only fires when the value actually changes, so sending the same
+text twice is silent the second time.
+
 ## Updating a pass
 
 `overrides` is deep-merged onto `template/pass.json`. Field arrays merge by `key`,
