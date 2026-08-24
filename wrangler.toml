@@ -18,7 +18,7 @@ fallthrough = true
 [[d1_databases]]
 binding = "DB"
 database_name = "passes"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "35d7cac0-b4cc-4233-8f8f-aa34ddf8fa9b"
 
 [vars]
 PASS_TYPE_IDENTIFIER = "pass.to.jonny"
