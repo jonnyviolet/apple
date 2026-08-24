@@ -1,0 +1,75 @@
+{
+  "formatVersion" : 1,
+  "passTypeIdentifier" : "pass.to.jonny",
+  "teamIdentifier" : "9YYR8HYVP6",
+  "organizationName" : "jonny violet",
+  "description" : "jonny HQ member pass",
+  "logoText" : "jღnny HQ 💟",
+  "backgroundColor" : "rgb(168,33,245)",
+  "footerBackgroundColor" : "rgb(183,69,246)",
+  "foregroundColor" : "rgb(254,255,255)",
+  "labelColor" : "rgb(254,255,255)",
+  "suppressHeaderDarkening" : true,
+  "useAutomaticColors" : false,
+  "preferredStyleSchemes" : [],
+  "semantics" : {},
+  "barcodes" : [
+    {
+      "altText" : "scan or flip pass to text me 💜",
+      "format" : "PKBarcodeFormatQR",
+      "message" : "https://jonny.to/text",
+      "messageEncoding" : "iso-8859-1"
+    }
+  ],
+  "featuredActions" : [
+    {
+      "identifier" : "listen on apple music",
+      "type" : "listenToMusic",
+      "url" : "https://music.apple.com/us/artist/jonny-violet/1666370705"
+    },
+    {
+      "identifier" : "text jonny",
+      "type" : "viewOffersRewards",
+      "url" : "https://bcrw.apple.com/urn:biz:aff99180-cd4e-42bd-a91a-496af1c1cbe2?body=hi%21%20send%20to%20start%20%F0%9F%92%9F"
+    }
+  ],
+  "eventTicket" : {
+    "headerFields" : [
+      {
+        "key" : "member",
+        "label" : "official member",
+        "value" : ""
+      }
+    ],
+    "primaryFields" : [
+      {
+        "key" : "bling",
+        "textAlignment" : "PKTextAlignmentNatural",
+        "value" : "✨"
+      }
+    ],
+    "secondaryFields" : [
+      {
+        "key" : "ily",
+        "textAlignment" : "PKTextAlignmentNatural",
+        "value" : "ilyyy"
+      }
+    ],
+    "auxiliaryFields" : [],
+    "footerFields" : [
+      {
+        "key" : "loveu",
+        "textAlignment" : "PKTextAlignmentNatural",
+        "value" : "ilysm"
+      }
+    ],
+    "backFields" : [
+      {
+        "key" : "textlink",
+        "label" : "text me 💜",
+        "textAlignment" : "PKTextAlignmentCenter",
+        "value" : "jonny.to/text"
+      }
+    ]
+  }
+}
