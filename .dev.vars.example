@@ -1,0 +1,7 @@
+# Copy to .dev.vars for `wrangler dev`. Never commit the real file.
+PASS_CERT_P12_BASE64="base64 of your Pass Type ID .p12"
+PASS_CERT_P12_PASSWORD="p12 export password"
+WWDR_CERT_PEM="-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----"
+APNS_KEY_P8="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
+APNS_KEY_ID="ABCD123456"
+ADMIN_TOKEN="a long random string"

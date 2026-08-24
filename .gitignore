@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.wrangler/
+.dev.vars
+*.p12
+*.p8
+*.pkpass
+.DS_Store
