@@ -226,7 +226,11 @@ interface PushSummary {
 }
 
 async function createPass(request: Request, env: Env): Promise<Response> {
-  let body: { serialNumber?: unknown; overrides?: unknown } = {};
+  let body: {
+    serialNumber?: unknown;
+    authenticationToken?: unknown;
+    overrides?: unknown;
+  } = {};
   try {
     body = (await request.json()) as typeof body;
   } catch {
@@ -237,13 +241,23 @@ async function createPass(request: Request, env: Env): Promise<Response> {
     typeof body.serialNumber === "string" && body.serialNumber.length > 0
       ? body.serialNumber
       : crypto.randomUUID();
+  // A pass distributed as a single file (e.g. through Apple Messages for
+  // Business) is signed elsewhere, so its token has to be supplied here to
+  // match what was baked into that file rather than generated.
+  const authenticationToken =
+    typeof body.authenticationToken === "string" && body.authenticationToken.length > 0
+      ? body.authenticationToken
+      : randomToken();
   const overrides = JSON.stringify(body.overrides ?? {});
   const timestamp = now();
-  const authenticationToken = randomToken();
 
   await env.DB.prepare(
     `INSERT INTO passes (serial_number, authentication_token, overrides, updated_at, created_at)
-     VALUES (?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT (serial_number) DO UPDATE SET
+       authentication_token = excluded.authentication_token,
+       overrides = excluded.overrides,
+       updated_at = excluded.updated_at`,
   )
     .bind(serialNumber, authenticationToken, overrides, timestamp, timestamp)
     .run();

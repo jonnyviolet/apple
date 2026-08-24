@@ -90,6 +90,29 @@ Returns a `downloadUrl`; open it on an iPhone and Wallet offers to add the pass.
 Each pass gets its own random `authenticationToken` — a shared token would let any
 holder fetch everyone else's pass.
 
+## Distributing one shared pass (Apple Messages for Business)
+
+AMB uploads a single `.pkpass` file, so every recipient gets the same
+`serialNumber` and `authenticationToken`. That works — one push updates every
+holder — but there is no per-person state: you can't personalise or revoke
+individually.
+
+In this mode Pass Designer signs the file you distribute, and the Worker only
+serves updates. Add the three keys to the Pass Designer template's `pass.json`,
+export, and upload that file to AMB. Then tell the Worker about the serial so it
+recognises the token the file carries:
+
+```bash
+curl -X POST https://passes.jonny.to/admin/passes \
+  -H "authorization: Bearer $ADMIN_TOKEN" \
+  -H 'content-type: application/json' \
+  -d '{"serialNumber": "0001", "authenticationToken": "<same token as in pass.json>"}'
+```
+
+The signing certificate is still required even though Pass Designer signs the
+distributed file: `GET /v1/passes/...` returns a whole new signed pass, because
+that is how Wallet applies an update.
+
 ## Updating a pass
 
 `overrides` is deep-merged onto `template/pass.json`. Field arrays merge by `key`,
