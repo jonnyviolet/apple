@@ -121,13 +121,14 @@ exactly that value. Keep it short — the field itself renders in the header str
 
 The everyday way to do this is <https://passes.jonny.to/send>: type the message,
 press send. The page is public but does nothing until you enter `ADMIN_TOKEN`,
-which the browser then remembers, and it drives two endpoints:
+which the browser then remembers, and it drives three endpoints:
 
 - `GET /send/state` — current announcement text and how many devices are registered
 - `POST /send/announce` — `{"message": "..."}`, writes the field and pushes
+- `POST /send/clear` — blanks the field, see below
 
-Both take `Authorization: Bearer $ADMIN_TOKEN`, and both act on
-`SHARED_SERIAL_NUMBER`. The equivalent by hand:
+All take `Authorization: Bearer $ADMIN_TOKEN`, and all act on
+`SHARED_SERIAL_NUMBER`. The announce equivalent by hand:
 
 ```bash
 curl -X PATCH https://passes.jonny.to/admin/passes/0001 \
@@ -139,6 +140,13 @@ curl -X PATCH https://passes.jonny.to/admin/passes/0001 \
 
 A notification only fires when the value actually changes, so sending the same
 text twice is silent the second time.
+
+### Clearing it again
+
+`POST /send/clear` blanks the field without pushing and without touching
+`updated_at` — either would make Wallet notify a second time, with empty text.
+So a clear is only visible to people who install the pass after it: existing
+holders keep the last announcement on the pass until the next one replaces it.
 
 ## Updating a pass
 
