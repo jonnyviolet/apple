@@ -13,6 +13,7 @@
     "auxiliaryFields": [],
     "backFields": [
       {
+        "attributedValue": "<a href=\"https://jonny.to/text\">jonny.to/text</a>",
         "key": "textlink",
         "label": "text me 💜",
         "textAlignment": "PKTextAlignmentCenter",
