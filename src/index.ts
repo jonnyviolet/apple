@@ -1,7 +1,7 @@
 import type { Env, PassRecord, RegistrationRecord } from "./env";
 import { buildSignedPass } from "./pkpass";
 import { isStaleToken, pushToDevices } from "./apns";
-import { announcementOverrides, sendPage, sendState } from "./send";
+import { announcementOverrides, clearAnnouncement, sendPage, sendState } from "./send";
 
 const PKPASS_CONTENT_TYPE = "application/vnd.apple.pkpass";
 
@@ -410,6 +410,11 @@ export default {
       }
       if (segments.length === 2 && segments[1] === "announce" && method === "POST") {
         return sendAnnouncement(request, env);
+      }
+      if (segments.length === 2 && segments[1] === "clear" && method === "POST") {
+        const pass = await loadPass(env, env.SHARED_SERIAL_NUMBER);
+        if (!pass) return json({ error: "shared pass is not registered" }, 404);
+        return clearAnnouncement(env, pass);
       }
       return new Response("Not Found", { status: 404 });
     }

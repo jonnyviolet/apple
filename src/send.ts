@@ -68,6 +68,7 @@ const PAGE = `<!doctype html>
     <div class="card">
       <div class="row"><span>showing now</span><span id="devices"></span></div>
       <b id="current">&mdash;</b>
+      <button class="link" id="clear" hidden>clear it from the pass</button>
     </div>
     <label for="message">new message</label>
     <textarea id="message" rows="2" maxlength="60" enterkeyhint="send"
@@ -109,6 +110,7 @@ async function load() {
   }
   const state = await res.json();
   $("current").textContent = state.value || "(blank)";
+  $("clear").hidden = !state.value;
   $("devices").textContent =
     state.devices === 1 ? "1 device" : state.devices + " devices";
   show("app");
@@ -153,6 +155,21 @@ $("send").onclick = async () => {
     say(String(err.message || err), true);
   } finally {
     $("send").disabled = false;
+  }
+};
+
+$("clear").onclick = async () => {
+  $("clear").disabled = true;
+  say("clearing\\u2026");
+  try {
+    const res = await api("/send/clear", { method: "POST" });
+    if (!res.ok) throw new Error("failed");
+    say("cleared \\u2014 no notification sent");
+    await load();
+  } catch (err) {
+    say(String(err.message || err), true);
+  } finally {
+    $("clear").disabled = false;
   }
 };
 
@@ -224,6 +241,20 @@ export function announcementOverrides(pass: PassRecord, message: string): string
       headerFields: [...others, { key: ANNOUNCEMENT_FIELD, value: message }],
     },
   });
+}
+
+/**
+ * Blank the announcement without pushing, and without bumping `updated_at`:
+ * both would make Wallet re-notify, this time with empty text. Holders keep the
+ * last announcement until the next one replaces it; anyone installing the pass
+ * from here on gets a clean header.
+ */
+export async function clearAnnouncement(env: Env, pass: PassRecord): Promise<Response> {
+  await env.DB.prepare("UPDATE passes SET overrides = ? WHERE serial_number = ?")
+    .bind(announcementOverrides(pass, ""), pass.serial_number)
+    .run();
+
+  return Response.json({ serialNumber: pass.serial_number, value: "" });
 }
 
 export async function sendState(env: Env, pass: PassRecord): Promise<Response> {
