@@ -5,6 +5,8 @@ export interface Env {
   TEAM_IDENTIFIER: string;
   WEB_SERVICE_URL: string;
   APNS_HOST: string;
+  /** Serial of the single pass distributed through Apple Messages for Business. */
+  SHARED_SERIAL_NUMBER: string;
 
   PASS_CERT_P12_BASE64: string;
   PASS_CERT_P12_PASSWORD: string;

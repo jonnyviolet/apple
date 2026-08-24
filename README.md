@@ -119,6 +119,16 @@ The `member` header field carries `"changeMessage": "%@"`, so writing a new valu
 into it both updates the pass and raises a lock-screen notification reading
 exactly that value. Keep it short — the field itself renders in the header strip.
 
+The everyday way to do this is <https://passes.jonny.to/send>: type the message,
+press send. The page is public but does nothing until you enter `ADMIN_TOKEN`,
+which the browser then remembers, and it drives two endpoints:
+
+- `GET /send/state` — current announcement text and how many devices are registered
+- `POST /send/announce` — `{"message": "..."}`, writes the field and pushes
+
+Both take `Authorization: Bearer $ADMIN_TOKEN`, and both act on
+`SHARED_SERIAL_NUMBER`. The equivalent by hand:
+
 ```bash
 curl -X PATCH https://passes.jonny.to/admin/passes/0001 \
   -H "authorization: Bearer $ADMIN_TOKEN" \

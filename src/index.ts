@@ -1,6 +1,7 @@
 import type { Env, PassRecord, RegistrationRecord } from "./env";
 import { buildSignedPass } from "./pkpass";
 import { isStaleToken, pushToDevices } from "./apns";
+import { announcementOverrides, sendPage, sendState } from "./send";
 
 const PKPASS_CONTENT_TYPE = "application/vnd.apple.pkpass";
 
@@ -295,6 +296,34 @@ async function updatePass(
 }
 
 /**
+ * One-field update of the shared pass, driven by the /send console: writes the
+ * announcement into the header field and pushes it to every holder.
+ */
+async function sendAnnouncement(request: Request, env: Env): Promise<Response> {
+  let body: { message?: unknown } = {};
+  try {
+    body = (await request.json()) as typeof body;
+  } catch {
+    return json({ error: "invalid JSON body" }, 400);
+  }
+
+  const message = typeof body.message === "string" ? body.message.trim() : "";
+  if (!message) return json({ error: "message is required" }, 400);
+
+  const serialNumber = env.SHARED_SERIAL_NUMBER;
+  const pass = await loadPass(env, serialNumber);
+  if (!pass) return json({ error: "shared pass is not registered" }, 404);
+
+  await env.DB.prepare(
+    "UPDATE passes SET overrides = ?, updated_at = ? WHERE serial_number = ?",
+  )
+    .bind(announcementOverrides(pass, message), now(), serialNumber)
+    .run();
+
+  return json({ serialNumber, message, push: await pushUpdate(env, serialNumber) });
+}
+
+/**
  * Human-facing download link. Uses a query token rather than the ApplePass
  * header because Safari can't set headers when following a link.
  */
@@ -366,6 +395,22 @@ export default {
         return logDeviceMessages(request, env);
       }
 
+      return new Response("Not Found", { status: 404 });
+    }
+
+    if (segments[0] === "send") {
+      if (segments.length === 1 && method === "GET") return sendPage();
+
+      if (!authorizeAdmin(request, env)) return json({ error: "unauthorized" }, 401);
+
+      if (segments.length === 2 && segments[1] === "state" && method === "GET") {
+        const pass = await loadPass(env, env.SHARED_SERIAL_NUMBER);
+        if (!pass) return json({ error: "shared pass is not registered" }, 404);
+        return sendState(env, pass);
+      }
+      if (segments.length === 2 && segments[1] === "announce" && method === "POST") {
+        return sendAnnouncement(request, env);
+      }
       return new Response("Not Found", { status: 404 });
     }
 
