@@ -393,7 +393,7 @@ async function updatePass(
 
 /**
  * One-field update of the shared pass, driven by the /send console: writes the
- * announcement into the header field and pushes it to every holder.
+ * announcement into the auxiliary field and pushes it to every holder.
  */
 async function sendAnnouncement(request: Request, env: Env): Promise<Response> {
   let body: { message?: unknown } = {};
