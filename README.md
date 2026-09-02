@@ -120,14 +120,16 @@ a new value into it both updates the pass and raises a lock-screen notification
 reading exactly that value.
 
 The everyday way to do this is <https://passes.jonny.to/send>: type the message,
-press send. The page is public but does nothing until you enter `ADMIN_TOKEN`,
+press send. The page is public but does nothing until you enter an admin credential,
 which the browser then remembers, and it drives three endpoints:
 
 - `GET /send/state` — current announcement text and how many devices are registered
 - `POST /send/announce` — `{"message": "..."}`, writes the field and pushes
 - `POST /send/clear` — blanks the field, see below
 
-All take `Authorization: Bearer $ADMIN_TOKEN`, and all act on
+Admin endpoints and `/send` accept either `ADMIN_TOKEN` or the optional
+`ADMIN_PASSWORD` secret. All take `Authorization: Bearer $ADMIN_TOKEN` or
+`$ADMIN_PASSWORD`, and all act on
 `SHARED_SERIAL_NUMBER`. The announce equivalent by hand:
 
 ```bash

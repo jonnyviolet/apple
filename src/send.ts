@@ -3,7 +3,7 @@ import type { Env, PassRecord } from "./env";
 /**
  * Browser console for broadcasting an announcement. The page itself is public
  * (it holds no secret); every action it performs is authorised by the admin
- * token the operator types in, which the browser keeps in localStorage.
+ * token or password the operator types in, which the browser keeps in localStorage.
  */
 const PAGE = `<!doctype html>
 <html lang="en">
@@ -55,8 +55,8 @@ const PAGE = `<!doctype html>
 <main>
   <section id="gate" hidden>
     <h1>jonny HQ</h1>
-    <p class="sub">admin token to continue</p>
-    <label for="token">token</label>
+    <p class="sub">admin token or password to continue</p>
+    <label for="token">token or password</label>
     <input id="token" type="password" autocomplete="current-password" enterkeyhint="go">
     <button id="unlock">unlock</button>
     <div id="gate-status"></div>
@@ -76,7 +76,7 @@ const PAGE = `<!doctype html>
     <div class="count"><span id="count">0</span>/60</div>
     <button id="send">send to everyone</button>
     <div id="status"></div>
-    <button class="link" id="forget">forget token</button>
+    <button class="link" id="forget">forget token or password</button>
   </section>
 </main>
 <script>
@@ -122,7 +122,7 @@ $("unlock").onclick = async () => {
   if (!token) return;
   $("gate-status").textContent = "checking\\u2026";
   const ok = await load();
-  $("gate-status").textContent = ok ? "" : "that token didn't work";
+  $("gate-status").textContent = ok ? "" : "that token or password didn't work";
   if (ok) localStorage.setItem(KEY, token);
 };
 

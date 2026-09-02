@@ -17,6 +17,7 @@ export interface Env {
   APNS_KEY_ID: string;
 
   ADMIN_TOKEN: string;
+  ADMIN_PASSWORD?: string;
 }
 
 export interface PassRecord {
