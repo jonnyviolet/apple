@@ -57,7 +57,11 @@ async function authorizePass(
 function authorizeAdmin(request: Request, env: Env): boolean {
   const header = request.headers.get("authorization") ?? "";
   if (!header.startsWith("Bearer ")) return false;
-  return safeEqual(header.slice("Bearer ".length).trim(), env.ADMIN_TOKEN);
+  const credential = header.slice("Bearer ".length).trim();
+  const tokenMatches = safeEqual(credential, env.ADMIN_TOKEN);
+  const password = (env.ADMIN_PASSWORD ?? "").trim();
+  const passwordMatches = safeEqual(credential, password);
+  return tokenMatches || (password.length > 0 && passwordMatches);
 }
 
 async function registerDevice(
