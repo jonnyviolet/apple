@@ -173,11 +173,12 @@ Tokens APNs reports as `410`/`BadDeviceToken`/`Unregistered` are deleted automat
 
 A Worker invocation on the free plan may make 50 outbound requests, and one APNs
 push is one request — so a send to more than ~50 holders would silently stop at
-50 with `Too many subrequests`. Pushes are therefore fanned out in batches of 40
+50 with `Too many subrequests`. Pushes are therefore fanned out in batches of 20
 through `POST /internal/push-batch`, called over a service binding to this same
-Worker, so each batch gets its own budget. The dispatching invocation spends one
-request per batch against the same limit, which puts the ceiling at roughly 1,800
-holders; past that, batches would need to fan out a second level.
+Worker, so each batch gets its own budget and stays within the CPU-time limit.
+The dispatching invocation spends one request per batch and another for a retry,
+which puts the ceiling at roughly 50 batches (about 1,000 holders) before retry
+overhead; past that, batches would need to fan out a second level.
 
 ## Endpoints
 
