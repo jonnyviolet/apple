@@ -1,5 +1,6 @@
 export interface Env {
   DB: D1Database;
+  SELF: Fetcher;
 
   PASS_TYPE_IDENTIFIER: string;
   TEAM_IDENTIFIER: string;
