@@ -59,7 +59,7 @@ function authorizeAdmin(request: Request, env: Env): boolean {
   if (!header.startsWith("Bearer ")) return false;
   const credential = header.slice("Bearer ".length).trim();
   const tokenMatches = safeEqual(credential, env.ADMIN_TOKEN);
-  const password = env.ADMIN_PASSWORD ?? "";
+  const password = (env.ADMIN_PASSWORD ?? "").trim();
   const passwordMatches = safeEqual(credential, password);
   return tokenMatches || (password.length > 0 && passwordMatches);
 }

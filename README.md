@@ -128,8 +128,8 @@ which the browser then remembers, and it drives three endpoints:
 - `POST /send/clear` — blanks the field, see below
 
 Admin endpoints and `/send` accept either `ADMIN_TOKEN` or the optional
-`ADMIN_PASSWORD` secret. All take `Authorization: Bearer $ADMIN_TOKEN` or
-`$ADMIN_PASSWORD`, and all act on
+`ADMIN_PASSWORD` secret; surrounding whitespace in the credential is ignored.
+All take `Authorization: Bearer $ADMIN_TOKEN` or `$ADMIN_PASSWORD`, and all act on
 `SHARED_SERIAL_NUMBER`. The announce equivalent by hand:
 
 ```bash
