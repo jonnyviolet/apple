@@ -2,7 +2,7 @@
   "backgroundColor": "rgb(168,33,245)",
   "barcodes": [
     {
-      "altText": "scan or flip pass to text me 💜",
+      "altText": "scan to text me 💜\nofficial \uF8FF partner",
       "format": "PKBarcodeFormatQR",
       "message": "https://jonny.to/text",
       "messageEncoding": "iso-8859-1"
