@@ -24,6 +24,12 @@
         "label": "text me 💜",
         "textAlignment": "PKTextAlignmentCenter",
         "value": "jonny.to/text"
+      },
+      {
+        "key": "disclosure",
+        "label": "official \uF8FF partner 💜",
+        "textAlignment": "PKTextAlignmentCenter",
+        "value": "the apple music link here is a partner link, so if u subscribe they share that money w me. costs u nothing extra 🤭"
       }
     ],
     "footerFields": [
