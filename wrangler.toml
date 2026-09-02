@@ -25,6 +25,11 @@ PASS_TYPE_IDENTIFIER = "pass.to.jonny"
 TEAM_IDENTIFIER = "9YYR8HYVP6"
 WEB_SERVICE_URL = "https://passes.jonny.to/"
 APNS_HOST = "api.push.apple.com"
+SHARED_SERIAL_NUMBER = "0001"
+
+[[services]]
+binding = "SELF"
+service = "jonny-hq-passes"
 
 # Secrets (set with `wrangler secret put <NAME>`):
 #   PASS_CERT_P12_BASE64  - base64 of the Pass Type ID .p12
@@ -32,4 +37,4 @@ APNS_HOST = "api.push.apple.com"
 #   WWDR_CERT_PEM         - Apple WWDR G4 intermediate, PEM text
 #   APNS_KEY_P8           - contents of AuthKey_XXXXXXXX.p8
 #   APNS_KEY_ID           - the 10-char key ID
-#   ADMIN_TOKEN           - bearer token guarding /admin/*
+#   ADMIN_TOKEN           - bearer token guarding /admin/* and /send

@@ -113,6 +113,41 @@ The signing certificate is still required even though Pass Designer signs the
 distributed file: `GET /v1/passes/...` returns a whole new signed pass, because
 that is how Wallet applies an update.
 
+## Announcing something to every holder
+
+The `member` header field carries `"changeMessage": "%@"`, so writing a new value
+into it both updates the pass and raises a lock-screen notification reading
+exactly that value. Keep it short — the field itself renders in the header strip.
+
+The everyday way to do this is <https://passes.jonny.to/send>: type the message,
+press send. The page is public but does nothing until you enter `ADMIN_TOKEN`,
+which the browser then remembers, and it drives three endpoints:
+
+- `GET /send/state` — current announcement text and how many devices are registered
+- `POST /send/announce` — `{"message": "..."}`, writes the field and pushes
+- `POST /send/clear` — blanks the field, see below
+
+All take `Authorization: Bearer $ADMIN_TOKEN`, and all act on
+`SHARED_SERIAL_NUMBER`. The announce equivalent by hand:
+
+```bash
+curl -X PATCH https://passes.jonny.to/admin/passes/0001 \
+  -H "authorization: Bearer $ADMIN_TOKEN" \
+  -H 'content-type: application/json' \
+  -d '{"overrides": {"eventTicket": {"headerFields": [
+        {"key": "member", "value": "new song out now"}]}}}'
+```
+
+A notification only fires when the value actually changes, so sending the same
+text twice is silent the second time.
+
+### Clearing it again
+
+`POST /send/clear` blanks the field without pushing and without touching
+`updated_at` — either would make Wallet notify a second time, with empty text.
+So a clear is only visible to people who install the pass after it: existing
+holders keep the last announcement on the pass until the next one replaces it.
+
 ## Updating a pass
 
 `overrides` is deep-merged onto `template/pass.json`. Field arrays merge by `key`,
@@ -134,6 +169,16 @@ The response reports the push outcome per device:
 
 Tokens APNs reports as `410`/`BadDeviceToken`/`Unregistered` are deleted automatically.
 
+### The 50-subrequest ceiling
+
+A Worker invocation on the free plan may make 50 outbound requests, and one APNs
+push is one request — so a send to more than ~50 holders would silently stop at
+50 with `Too many subrequests`. Pushes are therefore fanned out in batches of 40
+through `POST /internal/push-batch`, called over a service binding to this same
+Worker, so each batch gets its own budget. The dispatching invocation spends one
+request per batch against the same limit, which puts the ceiling at roughly 1,800
+holders; past that, batches would need to fan out a second level.
+
 ## Endpoints
 
 | Method | Path | Purpose |
@@ -147,6 +192,7 @@ Tokens APNs reports as `410`/`BadDeviceToken`/`Unregistered` are deleted automat
 | POST | `/admin/passes` | Issue a pass |
 | PATCH | `/admin/passes/{serial}` | Update a pass and push |
 | POST | `/admin/passes/{serial}/push` | Re-push without changing anything |
+| POST | `/internal/push-batch` | One batch of pushes, called by the Worker itself |
 
 `/v1/*` uses `Authorization: ApplePass <authenticationToken>`; `/admin/*` uses
 `Authorization: Bearer <ADMIN_TOKEN>`.

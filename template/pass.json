@@ -28,6 +28,7 @@
     ],
     "headerFields": [
       {
+        "changeMessage": "%@",
         "key": "member",
         "label": "official member",
         "value": ""

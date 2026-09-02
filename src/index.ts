@@ -1,6 +1,7 @@
 import type { Env, PassRecord, RegistrationRecord } from "./env";
 import { buildSignedPass } from "./pkpass";
 import { isStaleToken, pushToDevices } from "./apns";
+import { announcementOverrides, clearAnnouncement, sendPage, sendState } from "./send";
 
 const PKPASS_CONTENT_TYPE = "application/vnd.apple.pkpass";
 
@@ -189,6 +190,84 @@ async function logDeviceMessages(request: Request, env: Env): Promise<Response> 
   return new Response(null, { status: 200 });
 }
 
+interface PushSummary {
+  devices: number;
+  delivered: number;
+  removedStale: number;
+  failures: { status: number; reason?: string }[];
+}
+
+interface PushBatchSummary {
+  delivered: number;
+  removedStale: number;
+  failures: { status: number; reason?: string }[];
+}
+
+async function removeStaleTokens(
+  env: Env,
+  serialNumber: string,
+  staleTokens: string[],
+): Promise<number> {
+  if (staleTokens.length === 0) return 0;
+
+  const placeholders = staleTokens.map(() => "?").join(", ");
+  await env.DB.prepare(
+    `DELETE FROM registrations
+     WHERE serial_number = ? AND push_token IN (${placeholders})`,
+  )
+    .bind(serialNumber, ...staleTokens)
+    .run();
+  return staleTokens.length;
+}
+
+async function runPushBatch(
+  env: Env,
+  serialNumber: string,
+  pushTokens: string[],
+): Promise<PushBatchSummary> {
+  const pushResults = await pushToDevices(env, pushTokens);
+  const staleTokens = pushResults.filter(isStaleToken).map((result) => result.pushToken);
+  await removeStaleTokens(env, serialNumber, staleTokens);
+
+  return {
+    delivered: pushResults.filter((result) => result.status === 200).length,
+    removedStale: staleTokens.length,
+    failures: pushResults
+      .filter((result) => result.status !== 200)
+      .map((result) => ({ status: result.status, reason: result.reason })),
+  };
+}
+
+function failedBatch(pushTokens: string[], status: number, reason: string): PushBatchSummary {
+  return {
+    delivered: 0,
+    removedStale: 0,
+    failures: pushTokens.map(() => ({ status, reason })),
+  };
+}
+
+async function pushBatch(request: Request, env: Env): Promise<Response> {
+  let body: { serialNumber?: unknown; pushTokens?: unknown } = {};
+  try {
+    body = (await request.json()) as typeof body;
+  } catch {
+    return json({ error: "invalid JSON body" }, 400);
+  }
+
+  if (
+    typeof body.serialNumber !== "string" ||
+    body.serialNumber.length === 0 ||
+    !Array.isArray(body.pushTokens) ||
+    !body.pushTokens.every((token) => typeof token === "string" && token.length > 0)
+  ) {
+    return json({ error: "invalid push batch" }, 400);
+  }
+
+  return json(
+    await runPushBatch(env, body.serialNumber, body.pushTokens as string[]),
+  );
+}
+
 async function pushUpdate(env: Env, serialNumber: string): Promise<PushSummary> {
   const { results } = await env.DB.prepare(
     "SELECT push_token FROM registrations WHERE serial_number = ?",
@@ -197,32 +276,50 @@ async function pushUpdate(env: Env, serialNumber: string): Promise<PushSummary> 
     .all<{ push_token: string }>();
 
   const tokens = (results ?? []).map((row) => row.push_token);
-  const pushResults = await pushToDevices(env, tokens);
-
-  const stale = pushResults.filter(isStaleToken).map((r) => r.pushToken);
-  for (const token of stale) {
-    await env.DB.prepare(
-      "DELETE FROM registrations WHERE serial_number = ? AND push_token = ?",
-    )
-      .bind(serialNumber, token)
-      .run();
+  const BATCH_SIZE = 40;
+  const batches: string[][] = [];
+  for (let i = 0; i < tokens.length; i += BATCH_SIZE) {
+    batches.push(tokens.slice(i, i + BATCH_SIZE));
   }
+
+  // Keep batches below the 50-subrequest invocation ceiling.
+  const batchResults =
+    batches.length <= 1
+      ? [await runPushBatch(env, serialNumber, batches[0] ?? [])]
+      : await Promise.all(
+          batches.map(async (pushTokens): Promise<PushBatchSummary> => {
+            try {
+              const response = await env.SELF.fetch(
+                new Request(new URL("/internal/push-batch", env.WEB_SERVICE_URL), {
+                  method: "POST",
+                  headers: {
+                    authorization: `Bearer ${env.ADMIN_TOKEN}`,
+                    "content-type": "application/json",
+                  },
+                  body: JSON.stringify({ serialNumber, pushTokens }),
+                }),
+              );
+              if (response.status !== 200) {
+                const reason = (await response.text()) || `batch returned ${response.status}`;
+                return failedBatch(pushTokens, response.status, reason);
+              }
+              return (await response.json()) as PushBatchSummary;
+            } catch (error) {
+              return failedBatch(
+                pushTokens,
+                0,
+                error instanceof Error ? error.message : "batch fetch failed",
+              );
+            }
+          }),
+        );
 
   return {
     devices: tokens.length,
-    delivered: pushResults.filter((r) => r.status === 200).length,
-    removedStale: stale.length,
-    failures: pushResults
-      .filter((r) => r.status !== 200)
-      .map((r) => ({ status: r.status, reason: r.reason })),
+    delivered: batchResults.reduce((total, result) => total + result.delivered, 0),
+    removedStale: batchResults.reduce((total, result) => total + result.removedStale, 0),
+    failures: batchResults.flatMap((result) => result.failures),
   };
-}
-
-interface PushSummary {
-  devices: number;
-  delivered: number;
-  removedStale: number;
-  failures: { status: number; reason?: string }[];
 }
 
 async function createPass(request: Request, env: Env): Promise<Response> {
@@ -292,6 +389,34 @@ async function updatePass(
 
   const push = await pushUpdate(env, serialNumber);
   return json({ serialNumber, push });
+}
+
+/**
+ * One-field update of the shared pass, driven by the /send console: writes the
+ * announcement into the header field and pushes it to every holder.
+ */
+async function sendAnnouncement(request: Request, env: Env): Promise<Response> {
+  let body: { message?: unknown } = {};
+  try {
+    body = (await request.json()) as typeof body;
+  } catch {
+    return json({ error: "invalid JSON body" }, 400);
+  }
+
+  const message = typeof body.message === "string" ? body.message.trim() : "";
+  if (!message) return json({ error: "message is required" }, 400);
+
+  const serialNumber = env.SHARED_SERIAL_NUMBER;
+  const pass = await loadPass(env, serialNumber);
+  if (!pass) return json({ error: "shared pass is not registered" }, 404);
+
+  await env.DB.prepare(
+    "UPDATE passes SET overrides = ?, updated_at = ? WHERE serial_number = ?",
+  )
+    .bind(announcementOverrides(pass, message), now(), serialNumber)
+    .run();
+
+  return json({ serialNumber, message, push: await pushUpdate(env, serialNumber) });
 }
 
 /**
@@ -369,8 +494,37 @@ export default {
       return new Response("Not Found", { status: 404 });
     }
 
+    if (segments[0] === "send") {
+      if (segments.length === 1 && method === "GET") return sendPage();
+
+      if (!authorizeAdmin(request, env)) return json({ error: "unauthorized" }, 401);
+
+      if (segments.length === 2 && segments[1] === "state" && method === "GET") {
+        const pass = await loadPass(env, env.SHARED_SERIAL_NUMBER);
+        if (!pass) return json({ error: "shared pass is not registered" }, 404);
+        return sendState(env, pass);
+      }
+      if (segments.length === 2 && segments[1] === "announce" && method === "POST") {
+        return sendAnnouncement(request, env);
+      }
+      if (segments.length === 2 && segments[1] === "clear" && method === "POST") {
+        const pass = await loadPass(env, env.SHARED_SERIAL_NUMBER);
+        if (!pass) return json({ error: "shared pass is not registered" }, 404);
+        return clearAnnouncement(env, pass);
+      }
+      return new Response("Not Found", { status: 404 });
+    }
+
     if (segments[0] === "download" && segments.length === 2 && method === "GET") {
       return downloadPass(request, env, segments[1] as string);
+    }
+
+    if (segments[0] === "internal") {
+      if (!authorizeAdmin(request, env)) return new Response("Unauthorized", { status: 401 });
+      if (segments.length === 2 && segments[1] === "push-batch" && method === "POST") {
+        return pushBatch(request, env);
+      }
+      return new Response("Not Found", { status: 404 });
     }
 
     if (segments[0] === "admin") {
