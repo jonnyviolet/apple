@@ -276,7 +276,7 @@ async function pushUpdate(env: Env, serialNumber: string): Promise<PushSummary> 
     .all<{ push_token: string }>();
 
   const tokens = (results ?? []).map((row) => row.push_token);
-  const BATCH_SIZE = 40;
+  const BATCH_SIZE = 20;
   const batches: string[][] = [];
   for (let i = 0; i < tokens.length; i += BATCH_SIZE) {
     batches.push(tokens.slice(i, i + BATCH_SIZE));
@@ -288,29 +288,32 @@ async function pushUpdate(env: Env, serialNumber: string): Promise<PushSummary> 
       ? [await runPushBatch(env, serialNumber, batches[0] ?? [])]
       : await Promise.all(
           batches.map(async (pushTokens): Promise<PushBatchSummary> => {
-            try {
-              const response = await env.SELF.fetch(
-                new Request(new URL("/internal/push-batch", env.WEB_SERVICE_URL), {
-                  method: "POST",
-                  headers: {
-                    authorization: `Bearer ${env.ADMIN_TOKEN}`,
-                    "content-type": "application/json",
-                  },
-                  body: JSON.stringify({ serialNumber, pushTokens }),
-                }),
-              );
-              if (response.status !== 200) {
-                const reason = (await response.text()) || `batch returned ${response.status}`;
-                return failedBatch(pushTokens, response.status, reason);
+            let status = 0;
+            let reason = "batch fetch failed";
+            for (let attempt = 0; attempt < 2; attempt += 1) {
+              try {
+                const response = await env.SELF.fetch(
+                  new Request(new URL("/internal/push-batch", env.WEB_SERVICE_URL), {
+                    method: "POST",
+                    headers: {
+                      authorization: `Bearer ${env.ADMIN_TOKEN}`,
+                      "content-type": "application/json",
+                    },
+                    body: JSON.stringify({ serialNumber, pushTokens }),
+                  }),
+                );
+                if (response.status !== 200) {
+                  status = response.status;
+                  reason = (await response.text()) || `batch returned ${response.status}`;
+                  continue;
+                }
+                return (await response.json()) as PushBatchSummary;
+              } catch (error) {
+                status = 0;
+                reason = error instanceof Error ? error.message : "batch fetch failed";
               }
-              return (await response.json()) as PushBatchSummary;
-            } catch (error) {
-              return failedBatch(
-                pushTokens,
-                0,
-                error instanceof Error ? error.message : "batch fetch failed",
-              );
             }
+            return failedBatch(pushTokens, status, reason);
           }),
         );
 
@@ -393,7 +396,7 @@ async function updatePass(
 
 /**
  * One-field update of the shared pass, driven by the /send console: writes the
- * announcement into the header field and pushes it to every holder.
+ * announcement into the auxiliary field and pushes it to every holder.
  */
 async function sendAnnouncement(request: Request, env: Env): Promise<Response> {
   let body: { message?: unknown } = {};

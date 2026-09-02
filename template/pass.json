@@ -8,15 +8,28 @@
       "messageEncoding": "iso-8859-1"
     }
   ],
-  "description": "jonny HQ member pass",
+  "description": "tap to add",
   "eventTicket": {
-    "auxiliaryFields": [],
+    "auxiliaryFields": [
+      {
+        "changeMessage": "%@",
+        "key": "announcement",
+        "textAlignment": "PKTextAlignmentNatural",
+        "value": ""
+      }
+    ],
     "backFields": [
       {
         "key": "textlink",
         "label": "text me 💜",
         "textAlignment": "PKTextAlignmentCenter",
         "value": "jonny.to/text"
+      },
+      {
+        "key": "disclosure",
+        "label": "official \uF8FF partner 💜",
+        "textAlignment": "PKTextAlignmentCenter",
+        "value": "the apple music link here is a partner link, so if u subscribe they share that money w me. costs u nothing extra 🤭"
       }
     ],
     "footerFields": [
@@ -28,7 +41,6 @@
     ],
     "headerFields": [
       {
-        "changeMessage": "%@",
         "key": "member",
         "label": "official member",
         "value": ""
@@ -53,7 +65,7 @@
     {
       "identifier": "listen on apple music",
       "type": "listenToMusic",
-      "url": "https://music.apple.com/us/artist/jonny-violet/1666370705"
+      "url": "https://music.apple.com/us/artist/jonny-violet/1666370705?itscg=30200&itsct=music_box_link&ls=1&app=music&mttnsubad=1666370705&at=1010l3Qu3"
     },
     {
       "identifier": "text jonny",

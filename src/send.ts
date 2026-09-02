@@ -204,7 +204,7 @@ function readAnnouncement(pass: PassRecord): string {
     if (!isPlainObject(parsed)) return "";
     const style = parsed["eventTicket"];
     if (!isPlainObject(style)) return "";
-    const fields = style["headerFields"];
+    const fields = style["auxiliaryFields"];
     if (!Array.isArray(fields)) return "";
     const field = fields.find((f) => isPlainObject(f) && f["key"] === ANNOUNCEMENT_FIELD);
     return isPlainObject(field) && typeof field["value"] === "string" ? field["value"] : "";
@@ -213,11 +213,8 @@ function readAnnouncement(pass: PassRecord): string {
   }
 }
 
-/**
- * The header field carrying `changeMessage`, so writing to it both updates the
- * pass and raises a lock-screen notification.
- */
-export const ANNOUNCEMENT_FIELD = "member";
+/** The auxiliary field carrying `changeMessage`. */
+export const ANNOUNCEMENT_FIELD = "announcement";
 
 export function announcementOverrides(pass: PassRecord, message: string): string {
   let overrides: Json = {};
@@ -229,17 +226,29 @@ export function announcementOverrides(pass: PassRecord, message: string): string
   }
 
   const style = isPlainObject(overrides["eventTicket"]) ? overrides["eventTicket"] : {};
-  const existing = Array.isArray(style["headerFields"]) ? style["headerFields"] : [];
-  const others = existing.filter(
+  const existingAuxiliary = Array.isArray(style["auxiliaryFields"])
+    ? style["auxiliaryFields"]
+    : [];
+  const auxiliaryOthers = existingAuxiliary.filter(
     (f) => !(isPlainObject(f) && f["key"] === ANNOUNCEMENT_FIELD),
   );
+  const existingHeader = Array.isArray(style["headerFields"]) ? style["headerFields"] : [];
+  const headerOthers = existingHeader.filter(
+    (f) => !(isPlainObject(f) && f["key"] === "member"),
+  );
+  const { headerFields: _headerFields, ...styleWithoutHeaders } = style;
+  const eventTicket: Json = {
+    ...styleWithoutHeaders,
+    auxiliaryFields: [
+      ...auxiliaryOthers,
+      { key: ANNOUNCEMENT_FIELD, value: message },
+    ],
+  };
+  if (headerOthers.length > 0) eventTicket.headerFields = headerOthers;
 
   return JSON.stringify({
     ...overrides,
-    eventTicket: {
-      ...style,
-      headerFields: [...others, { key: ANNOUNCEMENT_FIELD, value: message }],
-    },
+    eventTicket,
   });
 }
 
@@ -247,7 +256,7 @@ export function announcementOverrides(pass: PassRecord, message: string): string
  * Blank the announcement without pushing, and without bumping `updated_at`:
  * both would make Wallet re-notify, this time with empty text. Holders keep the
  * last announcement until the next one replaces it; anyone installing the pass
- * from here on gets a clean header.
+ * from here on gets a clean pass.
  */
 export async function clearAnnouncement(env: Env, pass: PassRecord): Promise<Response> {
   await env.DB.prepare("UPDATE passes SET overrides = ? WHERE serial_number = ?")

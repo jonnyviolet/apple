@@ -115,9 +115,9 @@ that is how Wallet applies an update.
 
 ## Announcing something to every holder
 
-The `member` header field carries `"changeMessage": "%@"`, so writing a new value
-into it both updates the pass and raises a lock-screen notification reading
-exactly that value. Keep it short — the field itself renders in the header strip.
+The `announcement` auxiliary field carries `"changeMessage": "%@"`, so writing
+a new value into it both updates the pass and raises a lock-screen notification
+reading exactly that value.
 
 The everyday way to do this is <https://passes.jonny.to/send>: type the message,
 press send. The page is public but does nothing until you enter `ADMIN_TOKEN`,
@@ -134,8 +134,8 @@ All take `Authorization: Bearer $ADMIN_TOKEN`, and all act on
 curl -X PATCH https://passes.jonny.to/admin/passes/0001 \
   -H "authorization: Bearer $ADMIN_TOKEN" \
   -H 'content-type: application/json' \
-  -d '{"overrides": {"eventTicket": {"headerFields": [
-        {"key": "member", "value": "new song out now"}]}}}'
+  -d '{"overrides": {"eventTicket": {"auxiliaryFields": [
+        {"key": "announcement", "value": "new song out now"}]}}}'
 ```
 
 A notification only fires when the value actually changes, so sending the same
@@ -145,8 +145,8 @@ text twice is silent the second time.
 
 `POST /send/clear` blanks the field without pushing and without touching
 `updated_at` — either would make Wallet notify a second time, with empty text.
-So a clear is only visible to people who install the pass after it: existing
-holders keep the last announcement on the pass until the next one replaces it.
+So a clear is stored for newly served passes, while existing holders keep the
+last announcement until the next one replaces it.
 
 ## Updating a pass
 
@@ -173,11 +173,12 @@ Tokens APNs reports as `410`/`BadDeviceToken`/`Unregistered` are deleted automat
 
 A Worker invocation on the free plan may make 50 outbound requests, and one APNs
 push is one request — so a send to more than ~50 holders would silently stop at
-50 with `Too many subrequests`. Pushes are therefore fanned out in batches of 40
+50 with `Too many subrequests`. Pushes are therefore fanned out in batches of 20
 through `POST /internal/push-batch`, called over a service binding to this same
-Worker, so each batch gets its own budget. The dispatching invocation spends one
-request per batch against the same limit, which puts the ceiling at roughly 1,800
-holders; past that, batches would need to fan out a second level.
+Worker, so each batch gets its own budget and stays within the CPU-time limit.
+The dispatching invocation spends one request per batch and another for a retry,
+which puts the ceiling at roughly 50 batches (about 1,000 holders) before retry
+overhead; past that, batches would need to fan out a second level.
 
 ## Endpoints
 
