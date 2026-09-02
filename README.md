@@ -169,6 +169,16 @@ The response reports the push outcome per device:
 
 Tokens APNs reports as `410`/`BadDeviceToken`/`Unregistered` are deleted automatically.
 
+### The 50-subrequest ceiling
+
+A Worker invocation on the free plan may make 50 outbound requests, and one APNs
+push is one request — so a send to more than ~50 holders would silently stop at
+50 with `Too many subrequests`. Pushes are therefore fanned out in batches of 40
+through `POST /internal/push-batch`, called over a service binding to this same
+Worker, so each batch gets its own budget. The dispatching invocation spends one
+request per batch against the same limit, which puts the ceiling at roughly 1,800
+holders; past that, batches would need to fan out a second level.
+
 ## Endpoints
 
 | Method | Path | Purpose |
@@ -182,6 +192,7 @@ Tokens APNs reports as `410`/`BadDeviceToken`/`Unregistered` are deleted automat
 | POST | `/admin/passes` | Issue a pass |
 | PATCH | `/admin/passes/{serial}` | Update a pass and push |
 | POST | `/admin/passes/{serial}/push` | Re-push without changing anything |
+| POST | `/internal/push-batch` | One batch of pushes, called by the Worker itself |
 
 `/v1/*` uses `Authorization: ApplePass <authenticationToken>`; `/admin/*` uses
 `Authorization: Bearer <ADMIN_TOKEN>`.
